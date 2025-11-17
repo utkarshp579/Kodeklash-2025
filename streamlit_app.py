@@ -6,6 +6,49 @@ import gdown
 import time
 import datetime
 from sklearn.preprocessing import LabelEncoder
+from preprocessing import preprocess_raw_input
+from build_402_features import build_402_features
+from predict_fraud import predict_fraud
+from streamlit_extras.colored_header import colored_header
+from streamlit_extras.add_vertical_space import add_vertical_space
+
+st.set_page_config(
+    page_title="FraudLens – Fraud Detection",
+    page_icon="🛡️",
+    initial_sidebar_state="expanded"
+)
+
+st.markdown("""
+<style>
+    .big-title {
+        font-size: 38px !important;
+        font-weight: 700 !important;
+        color: #3E64FF;
+    }
+    .sub-text {
+        font-size: 16px !important;
+        color: #555;
+    }
+    .box {
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        border: 1px solid #e1e1e1;
+    }
+    .section-title {
+        font-size: 24px !important;
+        font-weight: 600 !important;
+        padding-bottom: 10px;
+        color: #3E64FF;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<p class="big-title">🛡️ FraudLens – Smart Fraud Detection</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-text">A clean, modern and simplified interface for fraud prediction</p>', unsafe_allow_html=True)
+add_vertical_space(1)
+
+# st.divider()
 
 
 
@@ -34,7 +77,9 @@ def downloadFiles():
 
 # User Interface System
 def userDetails():
-  st.subheader('Provide your details')
+  st.markdown('<p class="section-title">👤 User Information</p>', unsafe_allow_html=True)
+  
+
 
   col1, col2 = st.columns(2)
   with col1:
@@ -49,7 +94,8 @@ def userDetails():
     phone = st.text_input("Enter your phone number", key="phone", placeholder="1234567890")
   phone_no = f"{phone_extension} {phone}"
 
-  st.markdown("#### Your Home Address")
+  st.markdown('<p class="section-title">🏠 Your Home Address</p>', unsafe_allow_html=True)
+
   col5, col6 = st.columns(2)
   with col5:
     street = st.text_input("Street", key="street", placeholder="123, Example Street")
@@ -69,7 +115,7 @@ def userDetails():
     corr_address_data = my_address_data
     corr_address = my_address
   else:
-    st.markdown("#### Your Correspondence Address")
+    st.markdown('<p class="section-title">📮Your Correspondence Address</p>', unsafe_allow_html=True)
     col10, col11 = st.columns(2)
     with col10:
       corr_street = st.text_input("Street", key="corr_street", placeholder="123, Example Street")
@@ -89,7 +135,8 @@ def userDetails():
   return name, age, phone_no, my_address_data, my_address, corr_address_data, corr_address
 
 def transactionDetails(labels, my_address_data, my_address):
-    st.subheader('Provide the transaction details')
+    st.markdown('<p class="section-title">💳 Transaction Details</p>', unsafe_allow_html=True)
+    
 
     # ---------------- TransactionDT ----------------
     START_DATE = '2017-12-01'
@@ -200,47 +247,127 @@ def transactionDetails(labels, my_address_data, my_address):
 
 
 def cardDetails(labels, TransactionAmt):
-  st.subheader("Provide the card details")
+    st.markdown('<p class="section-title">💳 Provide the Card Details</p>', unsafe_allow_html=True)
+   
 
-  # For Card_ID
-  cols = st.columns(5)
-  with cols[0]:
-    st.text_input("Card ID", key="Card_ID", label_visibility="hidden", value="Card ID", disabled=True)
-  with cols[1]:
-    card1 = st.text_input("Card ID 1", key="card1", label_visibility="hidden", value="1000", placeholder="1000")
-    first_value_card1 = float(card1[0])
-  with cols[2]:
-    card2 = st.text_input("Card ID 2", key="card2", label_visibility="hidden", value="5552", placeholder="5552")
-  with cols[3]:
-    card3 = st.text_input("Card ID 3", key="card3", label_visibility="hidden", value="1835", placeholder="1835")
-  with cols[4]:
-    card5 = st.text_input("Card ID 5", key="card5", label_visibility="hidden", value="2246", placeholder="2246")
-  Card_ID = f"{card1} {card2} {card3} {card5}"
+    # --------------------------
+    # Card ID (card1, card2, card3, card5)
+    # --------------------------
+    cols = st.columns(5)
+    with cols[0]:
+        st.text_input("Card ID", key="Card_ID", label_visibility="hidden", value="Card ID", disabled=True)
+    with cols[1]:
+        card1 = st.text_input("Card ID 1", key="card1", label_visibility="hidden", value="1000", placeholder="1000")
+        first_value_card1 = float(card1[0]) if card1 else 0
+    with cols[2]:
+        card2 = st.text_input("Card ID 2", key="card2", label_visibility="hidden", value="5552", placeholder="5552")
+    with cols[3]:
+        card3 = st.text_input("Card ID 3", key="card3", label_visibility="hidden", value="1835", placeholder="1835")
+    with cols[4]:
+        card5 = st.text_input("Card ID 5", key="card5", label_visibility="hidden", value="2246", placeholder="2246")
 
-  # Card Holder Name
-  card_holder_name = st.text_input("Card Holder Name", key="card_holder_name", placeholder="John Doe")
+    Card_ID = f"{card1} {card2} {card3} {card5}"
 
-  # For TransactionAmt_to_mean_card_id, TransactionAmt_to_mean_card1, TransactionAmt_to_mean_card4
-  max_limit = st.number_input("Maximum transaction limit of this card", min_value=1, value=100000, step=10, key="max_limit")
-  min_last, max_last = st.slider("Your usual transaction amount range through this card", min_value=1, max_value=100000 if max_limit == 1 else max_limit, value=(1, max_limit), step=1, key="min_max_last_card")
-  std_last = np.log(np.mean([min_last, max_last])) / np.log(np.std([min_last, max_last]))
-  TransactionAmt_to_mean_card_id = np.exp(TransactionAmt) - np.mean([min_last, max_last])
-  TransactionAmt_to_mean_card1 = np.exp(TransactionAmt) / np.mean([min_last, max_last])
-  TransactionAmt_to_mean_card4 = abs((np.exp(TransactionAmt) / np.mean([min_last, max_last])) - std_last)
+    # --------------------------
+    # Card holder name
+    # --------------------------
+    card_holder_name = st.text_input("Card Holder Name", key="card_holder_name", placeholder="John Doe")
 
-  # For card1, card2, card4 
-  payment_method = st.selectbox("Have you made the payment using a card?", ['Select One', 'Yes', 'No'], key="payment_method")
-  card4, card6 = -999, -999
-  if payment_method == 'Yes':
-    card4 = labels[st.selectbox("Brand of the card", ['Visa', 'Mastercard', 'American Express', 'Discover'], key="card4").lower()]
-    card6 = labels[st.selectbox("Usage of the card", ['Credit', 'Debit', 'Debit or Credit', 'Charge Card'], key="card6").lower()]
-  card_data = {"Card1": card1, "Card2": card2, "Card3": card3, "Card4": card4, "Card5": card5, "Card6": card6}
+    # --------------------------
+    # Transaction amount: mean ratios
+    # --------------------------
+    max_limit = st.number_input(
+        "Maximum transaction limit of this card",
+        min_value=1, value=100000, step=10, key="max_limit"
+    )
 
-  st.divider() ############################################################################################################
-  return card_data, Card_ID, first_value_card1, card_holder_name, TransactionAmt_to_mean_card_id, TransactionAmt_to_mean_card1, TransactionAmt_to_mean_card4
+    min_last, max_last = st.slider(
+        "Your usual transaction amount range through this card",
+        min_value=1,
+        max_value=max_limit,
+        value=(1, max_limit),
+        step=1,
+        key="min_max_last_card"
+    )
+
+    mean_val = np.mean([min_last, max_last])
+    std_last = np.log(mean_val) / np.log(np.std([min_last, max_last])) if np.std([min_last, max_last]) != 0 else 1
+
+    TransactionAmt_to_mean_card_id = np.exp(TransactionAmt) - mean_val
+    TransactionAmt_to_mean_card1 = np.exp(TransactionAmt) / mean_val
+    TransactionAmt_to_mean_card4 = abs((np.exp(TransactionAmt) / mean_val) - std_last)
+
+    # --------------------------
+    # card4 & card6 Label Encoding (Brand, Usage)
+    # --------------------------
+    payment_method = st.selectbox(
+    "Have you made the payment using a card?",
+    ['Select One', 'Yes', 'No'],
+    key="payment_method"
+)
+    card4, card6 = -999, -999
+    
+    brand_map = {
+    "visa": 0,
+    "mastercard": 1,
+    "american express": 2,
+    "discover": 3
+}
+    usage_map = {
+    "credit": 0,
+    "debit": 1,
+    "debit or credit": 2,
+    "charge card": 3
+}
+
+    if payment_method == 'Yes':
+    
+      card_brand = st.selectbox(
+        "Brand of the card",
+        ['Visa', 'Mastercard', 'American Express', 'Discover'],
+        key="card4"
+    ).lower()
+
+      card_usage = st.selectbox(
+        "Usage of the card",
+        ['Credit', 'Debit', 'Debit or Credit', 'Charge Card'],
+        key="card6"
+    ).lower()
+
+        # ✔ Correct use of LabelEncoder
+      try:
+           card4 = brand_map.get(card_brand, -999)
+           card6 = usage_map.get(card_usage, -999)
+      except ValueError:
+            st.error("Selected card brand or usage not found in LabelEncoder classes.")
+            st.write("Available classes:", labels.classes_)
+
+    card_data = {
+        "Card1": card1,
+        "Card2": card2,
+        "Card3": card3,
+        "Card4": card4,
+        "Card5": card5,
+        "Card6": card6
+    }
+
+    st.divider()
+
+    # Return everything
+    return (
+        card_data,
+        Card_ID,
+        first_value_card1,
+        card_holder_name,
+        TransactionAmt_to_mean_card_id,
+        TransactionAmt_to_mean_card1,
+        TransactionAmt_to_mean_card4
+    )
 
 def billingDetails(purchaser_email, card_holder_name, name, phone_no, tx_phone_no, my_address, tx_address, country, tx_country):
-  st.subheader("Provide the billing details")
+  st.markdown('<p class="section-title">🧾 Billing Details</p>', unsafe_allow_html=True)
+  
+
 
   # For M1, M4, M5, M6, M7 
   # M1 -> Billing Address == Shipping Address
@@ -279,7 +406,9 @@ def billingDetails(purchaser_email, card_holder_name, name, phone_no, tx_phone_n
 
 def behavioralDetails(TransactionAmt, min_last, max_last, _Hours, my_address_data, tx_address_data):
   # For V1, V12, V14, V35, V41, V65, V69, V75, V88, V94, V241
-  st.subheader("Provide the transactional usage details")
+  st.markdown('<p class="section-title">📈 Transactional Usage Details</p>', unsafe_allow_html=True)
+  
+
 
   cols = st.columns(3)
   with cols[0]:
@@ -330,7 +459,7 @@ def behavioralDetails(TransactionAmt, min_last, max_last, _Hours, my_address_dat
                 <b>Very Large Transactions:</b> 100000 - more than 100000<br />\
                 </div>", unsafe_allow_html=True)
 
-  st.subheader("Provide the transactional behavior details")
+  st.markdown('<p class="section-title">🧠 Transaction Behavior Details</p>', unsafe_allow_html=True)
   C7 = st.slider("How frequently do small transactions occur per day?", min_value=0, max_value=100, value=5, step=1, key="C7") / 2256
   C12 = st.slider("How frequently do large transactions occur per day?", min_value=0, max_value=10, value=2, step=1, key="C12") / 3188
 
@@ -344,7 +473,7 @@ def behavioralDetails(TransactionAmt, min_last, max_last, _Hours, my_address_dat
 
   # For D2, D3, D4, D5, D11
   st.divider() ############################################################################################################
-  st.subheader("Provide the transaction time behavioral details")
+  st.markdown('<p class="section-title">⏱️Transaction Time behavioral details</p>', unsafe_allow_html=True)
 
   D2 = st.slider("How many days between small transactions?", min_value=0, max_value=100, value=2, step=1, key="D2") / 641
   D11 = st.slider("How many days between medium transactions?", min_value=0, max_value=365, value=15, step=1, key="D11") / 936
@@ -357,8 +486,8 @@ def behavioralDetails(TransactionAmt, min_last, max_last, _Hours, my_address_dat
   return V_data, C_data, D_data
 
 def deviceInfo(labels):
-    st.subheader("Provide the device details")
-
+    st.markdown('<p class="section-title">📱 Device Details</p>', unsafe_allow_html=True)
+   
     # For DeviceType
     DeviceType = st.selectbox("Device Type", ['Select One', 'Desktop', 'Mobile'], key="DeviceType")
     DeviceType = 1 if DeviceType == 'Desktop' else 2 if DeviceType == 'Mobile' else -999
@@ -387,7 +516,7 @@ def preprocessing(data):
   C_data = data['Transactional Usage Data']
   C_data = np.array([C_data['C5'], C_data['C9'], C_data['C14'], C_data['C7'], C_data['C12'], C_data['C6']]).reshape(1, -1)
   PCA_C_data = PCA_C_features.transform(C_data)
-
+  
   with open('km_C_features.pkl', 'rb') as f:
     km_C_features = pickle.load(f)
   clusters_C = km_C_features.predict(PCA_C_data)
@@ -495,115 +624,139 @@ def predict(data):
   return prediction
 
 def app():
-  st.write("This is a simple web app to predict whether a transaction is fraudulent or not.")  
-  st.write("Please provide the necessary details to classify the transaction.")
+    st.write("This is a simple web app to predict whether a transaction is fraudulent or not.")  
+    st.write("Please provide the necessary details to classify the transaction.")
   
-  # Load labels from file
-  with open('labels.pkl', 'rb') as f:
-    labels = pickle.load(f)
+    # Load labels from file
+    with open('labels.pkl', 'rb') as f:
+        labels = pickle.load(f)
 
-  # Details of the User 
-  name, age, phone_no, my_address_data, my_address, corr_address_data, corr_address = userDetails()
+    # ----- User Inputs -----
+    name, age, phone_no, my_address_data, my_address, corr_address_data, corr_address = userDetails()
 
-  # Details of the Transaction 
-  (TransactionDT, TransactionID, TransactionAmt, mean_last, min_last, max_last, std_last, dist1, _Weekdays, _Days, _Hours, ProductCD,
-   purchaser_email, P_emaildomain, recipient_email, R_emaildomain, tx_phone_no, tx_address_data, tx_address, addr1, addr2,
-   first_value_addr1) = transactionDetails(labels, my_address_data, my_address)
+    # ----- Transaction Inputs -----
+    (TransactionDT, TransactionID, TransactionAmt, mean_last, min_last, max_last, std_last, dist1, 
+     _Weekdays, _Days, _Hours, ProductCD, purchaser_email, P_emaildomain, recipient_email, 
+     R_emaildomain, tx_phone_no, tx_address_data, tx_address, addr1, addr2, first_value_addr1) = \
+        transactionDetails(labels, my_address_data, my_address)
 
-  # Details of the Card 
-  (card_data, Card_ID, first_value_card1, card_holder_name, TransactionAmt_to_mean_card_id, TransactionAmt_to_mean_card1,
-    TransactionAmt_to_mean_card4) = cardDetails(labels, TransactionAmt)
+    # ----- Card Details -----
+    (card_data, Card_ID, first_value_card1, card_holder_name, TransactionAmt_to_mean_card_id,
+     TransactionAmt_to_mean_card1, TransactionAmt_to_mean_card4) = cardDetails(labels, TransactionAmt)
 
-  # Details of the Billing 
-  M_data = billingDetails(purchaser_email, card_holder_name, name, phone_no, tx_phone_no, my_address, tx_address,
-                          my_address_data['Country'], tx_address_data['Country'])
+    # ----- Billing -----
+    M_data = billingDetails(
+        purchaser_email, card_holder_name, name, phone_no, tx_phone_no, 
+        my_address, tx_address, my_address_data['Country'], tx_address_data['Country']
+    )
 
-  # Details of the Behavior
-  V_data, C_data, D_data = behavioralDetails(TransactionAmt, min_last, max_last, _Hours, my_address_data, tx_address_data)
+    # ----- Behavior -----
+    V_data, C_data, D_data = behavioralDetails(
+        TransactionAmt, min_last, max_last, _Hours, my_address_data, tx_address_data
+    )
 
-  # Details of the Device
-  device_data = deviceInfo(labels)
+    # ----- Device Info -----
+    device_data = deviceInfo(labels)
 
-  if st.button("Predict"):
-    data = {
-      "Name": name, "Age": age, "Phone Number": phone_no, "My Address Data": my_address_data, "Address": my_address, 
-      "Correspondence Address Data": corr_address_data, "Correspondence Address": corr_address, "Transaction Date": TransactionDT, 
-      "Transaction ID": TransactionID, "Transaction Amount": TransactionAmt, "Mean Transaction Amount": mean_last, 
-      "Minimum Transaction Amount": min_last, "Maximum Transaction Amount": max_last, "Standard Deviation Transaction Amount": std_last, 
-      "Distance": dist1, "Weekdays": _Weekdays, "Days": _Days, "Hours": _Hours, "ProductCD": ProductCD, 
-      "Purchaser Email": purchaser_email, "Purchaser Email Domain": P_emaildomain, "Recipient Email": recipient_email, 
-      "Recipient Email Domain": R_emaildomain, "Transaction Phone Number": tx_phone_no, "Transaction Address Data": tx_address_data, 
-      "Transaction Address": tx_address, "Address 1": addr1, "Address 2": addr2, "First Value Address 1": first_value_addr1, 
-      "Card Data": card_data, "Card ID": Card_ID, "First Value Card1": first_value_card1, "Card Holder Name": card_holder_name, 
-      "Transaction Amount with Card ID": TransactionAmt_to_mean_card_id, "Transaction Amount with Card1": TransactionAmt_to_mean_card1, 
-      "Transaction Amount with Card4": TransactionAmt_to_mean_card4, "Billing Data": M_data, "Behavioral Data": V_data, 
-      "Transactional Usage Data": C_data, "Transaction Time Behavioral Data": D_data, "Device Data": device_data
-    }
+    # ---------------------------
+    #        PREDICT BUTTON
+    # ---------------------------
+    if st.button("Predict"):
 
-    st.toast("Pre-processing has started...", icon="⏳")
-    with st.spinner('Model is processing...'):
-      progress_bar = st.progress(0)
-      for percent_complete in range(100):
-        time.sleep(0.03)
-        progress_bar.progress(percent_complete + 1)
-    
-    data = preprocessing(data)
-    st.toast("Pre-processing is complete...", icon="✅")
-    time.sleep(1)
+        # Everything stored in dictionary
+        data = {
+            "Name": name, "Age": age, "Phone Number": phone_no,
+            "My Address Data": my_address_data, "Address": my_address, 
+            "Correspondence Address Data": corr_address_data, "Correspondence Address": corr_address, 
+            "Transaction Date": TransactionDT, "Transaction ID": TransactionID, 
+            "Transaction Amount": TransactionAmt, "Mean Transaction Amount": mean_last, 
+            "Minimum Transaction Amount": min_last, "Maximum Transaction Amount": max_last, 
+            "Standard Deviation Transaction Amount": std_last, "Distance": dist1, "Weekdays": _Weekdays, 
+            "Days": _Days, "Hours": _Hours, "ProductCD": ProductCD, "Purchaser Email": purchaser_email, 
+            "Purchaser Email Domain": P_emaildomain, "Recipient Email": recipient_email, 
+            "Recipient Email Domain": R_emaildomain, "Transaction Phone Number": tx_phone_no, 
+            "Transaction Address Data": tx_address_data, "Transaction Address": tx_address, 
+            "Address 1": addr1, "Address 2": addr2, "First Value Address 1": first_value_addr1,
+            "Card Data": card_data, "Card ID": Card_ID, "First Value Card1": first_value_card1, 
+            "Card Holder Name": card_holder_name, "Transaction Amount with Card ID": TransactionAmt_to_mean_card_id, 
+            "Transaction Amount with Card1": TransactionAmt_to_mean_card1, 
+            "Transaction Amount with Card4": TransactionAmt_to_mean_card4, "Billing Data": M_data, 
+            "Behavioral Data": V_data, "Transactional Usage Data": C_data, 
+            "Transaction Time Behavioral Data": D_data, "Device Data": device_data
+        }
 
-    results = st.container()
-    with results:
-      st.subheader("Results")
-      st.toast("Model is working now...", icon="⏳")
-      with st.spinner('Model is processing...'):
-        progress_bar = st.progress(0)
-        for percent_complete in range(100):
-          time.sleep(0.03)
-          progress_bar.progress(percent_complete + 1)
-      st.toast("Prediction is complete...", icon="✅")
-      try:
-        prediction = predict(data)
-        st.write(f'Hello {name}!')
-        st.write('Based on the machine learning model, the risk of this transaction being fraudulent is:')
-        if prediction[:,1] >= 0.5:
-          st.error("**HIGH**", icon="🚫")
-          st.toast("The transaction is classified as fraudulent.", icon="🚫")
-        else:
-          st.success("**LOW**", icon="✅")
-          st.toast("The transaction is classified as non-fraudulent.", icon="🎉")
-        
-        st.warning('Disclaimer: **The results from this test are not intended for any financial or legal advice.** \
-                  The model was trained on 590,540 data points with personal attributes only. Additionally, the analysis of \
-                  this model indicates that attributes such as the transaction amount, maximum and minimum transaction limits, \
-                  and the distance of the transaction location are of high importance in determining if a transaction is fraudulent or not.', icon="⚠️")
-        
-        st.info('Accuracy: The machine learning model used for prediction was initially evaluated on an unknown dataset \
-                consisting of 506,691 records. The model correctly classified 89.54% of transactions as fraudulent and \
-                88.66% of transactions as non-fraudulent. The model has an AUC-ROC score of 0.94. It also considers the cost of \
-                misclassifying a non-fraudulent transaction as fraudulent, which is why the model is more likely to classify a transaction \
-                as non-fraudulent rather than fraudulent.', icon="ℹ️")
-        
-        details = st.expander("More Details", expanded=False)
-        with details:
-          st.write('According to the ML model:')
-          st.write('The probability of the transaction being classified as fraudulent is:')
-          st.error(f'**{prediction[:,1][0]:.2%}**')
-          st.write('The probability of the transaction being classified as non-fraudulent is:')
-          st.success(f'**{prediction[:,0][0]:.2%}**')
-          st.write('**Note:** If the probability of classifying the transaction as fraudulent is over 0.5, then the model will classify it as a fraudulent transaction.')
-      
-      except:
-        st.error("Enter valid values to show the results.", icon="🚨")
-        st.toast("Oops... Something went wrong. Please try again.", icon="🚨")
+        # Progress UI
+        st.toast("Pre-processing has started...", icon="⏳")
+        with st.spinner('Model is processing...'):
+            progress_bar = st.progress(0)
+            for percent_complete in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(percent_complete + 1)
 
-  if st.button("Go Back"):
-    st.toast("Thanks for using the application. Hope you have a great day!", icon="👋")
-    time.sleep(2)
-    st.session_state.button_clicked = False
-    st.rerun()
+        # -----------------------------
+        #    🔥 NEW PREPROCESSING
+        # -----------------------------
+        try:
+            data = preprocess_raw_input(data)
+        except Exception as e:
+            st.error(f"Preprocessing failed: {e}")
+            return
+
+        st.toast("Pre-processing is complete...", icon="✅")
+        time.sleep(1)
+
+        # UI container for results
+        results = st.container()
+        with results:
+            st.subheader("Results")
+            st.toast("Model is working now...", icon="⏳")
+
+            with st.spinner('Model is processing...'):
+                progress_bar = st.progress(0)
+                for percent_complete in range(100):
+                    time.sleep(0.02)
+                    progress_bar.progress(percent_complete + 1)
+
+            st.toast("Prediction is complete...", icon="✅")
+
+            try:
+                # -----------------------------
+                #    🔥 NEW PREDICT FUNCTION
+                # -----------------------------
+                pred, proba = predict_fraud(data)
+
+                st.write(f"Hello {name}!")
+                st.write("Based on the machine learning model, the risk of this transaction being fraudulent is:")
+
+                if pred == 1:
+                    st.error("**HIGH**", icon="🚫")
+                    st.toast("The transaction is classified as fraudulent.", icon="🚫")
+                else:
+                    st.success("**LOW**", icon="✅")
+                    st.toast("The transaction is classified as non-fraudulent.", icon="🎉")
+
+                # Probabilities details
+                details = st.expander("More Details", expanded=False)
+                with details:
+                    st.write("Fraud Probability:")
+                    st.error(f"**{proba:.2%}**")
+
+                    st.write("Non-Fraud Probability:")
+                    st.success(f"**{1 - proba:.2%}**")
+
+            except Exception as e:
+                st.error(f"Prediction Error: {e}", icon="🚨")
+                st.toast("Oops... Something went wrong. Please try again.", icon="🚨")
+
+    # Back button
+    if st.button("Go Back"):
+        st.toast("Thanks for using the application!", icon="👋")
+        time.sleep(2)
+        st.session_state.button_clicked = False
+        st.rerun()
 
 if __name__ == '__main__':
-  st.set_page_config(page_title="FraudLense App", page_icon="https://github.com/user-attachments/assets/662c2283-a6c9-471a-a2cd-b4173c64cd54")
+  # st.set_page_config(page_title="FraudLense App", page_icon="https://github.com/user-attachments/assets/662c2283-a6c9-471a-a2cd-b4173c64cd54")
   
   if 'button_clicked' not in st.session_state:
     st.session_state.button_clicked = False
@@ -653,4 +806,19 @@ if __name__ == '__main__':
     with cols[6]:
       st.button('Disagree')
       st.toast("You must agree to the terms to proceed with the application.", icon="🚨")
-    st.error("For any questions or issues, please reach out to support. [**here!** ](https://portfolio-mu-coral-78.vercel.app/)", icon="🚨")
+    st.markdown("""
+<div style="
+    padding: 20px;
+    background-color:#ffe5e5;
+    color: #212529;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+">
+💡 <b>Need Help?</b> For questions or issues, reach out to support. 
+<a href='https://www.linkedin.com/in/harikesh-tripathi-7841a0181/' target='_blank' style='color: #0d6efd; font-weight: bold; text-decoration: none;'>Click here!</a>
+</div>
+""", unsafe_allow_html=True)
+
+
